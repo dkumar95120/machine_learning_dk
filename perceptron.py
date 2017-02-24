@@ -42,20 +42,20 @@ class Perceptron:
         ni = len(train)
         # save current weights to makes sure all output points use the same weights
         # TODO: for each data point...
-        while True:
-            error_count = 0
-            for i in range(ni):     
-                # TODO: obtain the neuron's prediction for that point using current weights
-                y = self.activate(values[i])
-                error = train[i] - y
-                if error != 0:
-                    error_count += 1
-                    # TODO: update self.weights based on prediction accuracy, learning rate and input value
-                    for j in range(nw):
-                        self.weights[j] += eta*error*values[i][j]
-            if error_count == 0:
-                break
-            
+        #while True:
+        error_count = 0
+        for i in range(ni):     
+            # TODO: obtain the neuron's prediction for that point using current weights
+            y = self.activate(values[i])
+            error = train[i] - y
+            if error != 0:
+                error_count += 1
+                # TODO: update self.weights based on prediction accuracy, learning rate and input value
+                for j in range(nw):
+                    self.weights[j] += eta*error*values[i][j]
+        #if error_count == 0:
+        #    break
+        
 
 def test():
     """
