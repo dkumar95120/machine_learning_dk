@@ -151,7 +151,8 @@ for clf in [clf_A, clf_B, clf_C]:
 
 from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import make_scorer
-
+from sklearn.cross_validation import StratifiedShuffleSplit
+cv = StratifiedShuffleSplit(y_train, 10, test_size=0.2, random_state=42)
 # TODO: Initialize the classifier
 clf = AdaBoostClassifier(DecisionTreeClassifier(), random_state=0)
 
@@ -159,17 +160,20 @@ clf = AdaBoostClassifier(DecisionTreeClassifier(), random_state=0)
 #parameters = {'max_depth':[2,4,5,6,10], 
 #             'max_features':[None,'auto','log2'], 
 #              'min_samples_split':[4, 20, 50]}
-parameters = {'base_estimator__max_depth': [3,4,5],
-		'base_estimator__min_samples_split':[4, 10, 50]}
+parameters = {'base_estimator__max_depth': [3,4],
+		'base_estimator__min_samples_split':[4, 50],
+		'n_estimators':[10,20]}
 # TODO: Make an fbeta_score scoring object
 scorer = make_scorer(fbeta_score, beta=.5)
-
+print "starting Grid Search:"
+start = time()
 # TODO: Perform grid search on the classifier using 'scorer' as the scoring method
-grid_obj = GridSearchCV(clf, param_grid=parameters, scoring=scorer)
+grid_obj = GridSearchCV(clf, param_grid=parameters, scoring=scorer, cv=cv)
 
 # TODO: Fit the grid search object to the training data and find the optimal parameters
 grid_fit = grid_obj.fit(np.array(X_train), np.array(y_train))
-
+end = time ()
+print "time taken for grid search:", end - start
 # Get the estimator
 best_clf = grid_fit.best_estimator_
 
