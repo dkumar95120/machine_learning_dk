@@ -12063,8 +12063,15 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><strong>Answer:</strong>
-The first customer appears to be a Restaurant with heavy spending on Fresh and Frozen products. The second customer appears to be a retail grocery store. The third customer appears to be a Cafe.</p>
+<p><strong>Answer:</strong></p>
+<ul>
+<li><p>The first customer is chosen for its large spending in the Fresh and Frozen products (well above the 75% according to the dataset characteristics table above). In addition, the spending in other catergories is relatively average or below average. This appears to be a retail store e.g Farmer's market or a Grocery Store.</p>
+</li>
+<li><p>The second customer is chosen due to its large spending in the Grocery and Detergents_Paper product (again well above 75% of their class). The spending in other catergories is relatively average or below average. The second customer appears to be a restaurant.</p>
+</li>
+<li><p>The Third customer is chosen for its large spending in the Grocerty, Milk and Delicatessen products (well above their 75%). The spending in other catergories is relatively average or below average. The third customer appears to be a Cafe.</p>
+</li>
+</ul>
 
 </div>
 </div>
@@ -19841,7 +19848,7 @@ Due to the nature of soft assignments, a point can belong to two clusters with v
 <p><strong>Caution:</strong>
 It may converge to a local optima depending on your initialization of clusters. We can initialize multiple times.
 It is a much more complicated model to interpret.</p>
-<p>I chose K-means as we would like to identify each customer with a specific market segment.</p>
+<p>I chose K-means as we would like to identify each customer with a specific market segment. Besides, its fast and is good algorithm to start with. GMM may be tried later to improve on the results.</p>
 
 </div>
 </div>
@@ -20824,15 +20831,15 @@ Sample point 2 predicted to be in Cluster 1
 <p><strong>Answer:</strong></p>
 <p>Sample 1:</p>
 <ul>
-<li>Belongs to cluster 0 as spending on "Fresh" and "Frozen" is very high.</li>
+<li>Belongs to cluster 0 due to its spending on "Fresh" and "Frozen" well above 75% in their respective category. This segment appears to be retail grocery stores.</li>
 </ul>
 <p>Sample 2:</p>
 <ul>
-<li>Belongs to cluster 1 as spending on "Milk", "Grocery" And "Detergents_Paper" is high.</li>
+<li>Belongs to cluster 1 as its spending on "Grocery" And "Detergents_Paper" well above 75% in their respective category. This market segment appears to be a Restaurant or a hotel.</li>
 </ul>
 <p>Sample 3:</p>
 <ul>
-<li>Belongs to Cluster 1 as spending on "Milk", "Grocery" and "Detergents_Paper" is higher.</li>
+<li>Belongs to Cluster 1 as spending on "Milk", "Grocery" and "Deli" is well above 75%, which is probably a chain of Cafe or a restaurant.</li>
 </ul>
 
 </div>
