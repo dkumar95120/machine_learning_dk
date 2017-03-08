@@ -25,23 +25,13 @@ class LearningAgent(Agent):
         # Set any additional class parameters as needed
         # Initialize basic parameters of the Q-learning equation
         # Trials for plotting
+        self.waypoint = None
         self.moves = 0
         self.steps = 0
         self.success = 0
         self.failure = 0
         self.trials = 0
 
-    def printQ(self):
-        print "Q Matrix"
-        print "{0:35}".format('  agent state'),
-        for action in self.valid_actions:
-            print "{0:>10}".format(action),
-        print "\n"
-        for state in self.Q:
-            print "{0:35}".format(state),
-            for action in self.Q[state]:
-                print "{0:10.3f}".format(self.Q[state][action]),
-            print ""
 
     def reset(self, destination=None, testing=False):
         """ The reset function is called at the beginning of each trial.
@@ -61,7 +51,7 @@ class LearningAgent(Agent):
             if self.optimized:
                 self.epsilon = 1.0 / math.sqrt(self.trials + 1.)
             else:  
-               self.epsilon -= .02   # linear decay
+               self.epsilon -= .0025   # linear decay
 
 
         return None
@@ -72,14 +62,26 @@ class LearningAgent(Agent):
             are all features available to the agent. """
 
         # Collect data about the environment
-        waypoint = self.planner.next_waypoint() # The next waypoint 
+        self.waypoint = self.planner.next_waypoint() # The next waypoint 
         inputs = self.env.sense(self)           # Visual input - intersection light and traffic
         deadline = self.env.get_deadline(self)  # Remaining deadline
 
-        # Set 'state' as a tuple of relevant data for the agent        
-        state = (waypoint, inputs['light'], inputs['oncoming'])
+        # Set 'state' as a tuple of relevant data for the agent  
+        state = (self.waypoint, inputs['light'], inputs['oncoming'], inputs['left'])
         return state
 
+    def printQ(self):
+        print "Q Matrix"
+        print "{0:40},".format(' waypoint, light, oncoming-t,  left-t'),
+        for action in self.valid_actions:
+            print "{0:>10},".format(action),
+        print 'Best Action\n'
+        for state in self.Q:
+            _, best_action = self.get_maxQ(state)
+            print "{0:40},".format(state),
+            for action in self.valid_actions:
+                print "{0:10.3f},".format(self.Q[state][action]),
+            print "{0:>10}".format(best_action)
 
     def get_maxQ(self, state):
         """ The get_max_Q function is called when the agent is asked to find the
@@ -144,7 +146,7 @@ class LearningAgent(Agent):
         #   Use only the learning rate 'alpha' (do not use the discount factor 'gamma')
         q = self.Q[state][action]
         self.Q[state][action] = (1 - self.alpha)*q + self.alpha*reward
-        print "Q(current={0:6.3f}, previous={1:6.3f})".format(self.Q[state][action], q)
+        #print "Q(current={0:6.3f}, previous={1:6.3f})".format(self.Q[state][action], q)
         
         # update stats
         self.moves+=1
@@ -170,7 +172,7 @@ class LearningAgent(Agent):
         state = self.build_state()          # Get current state
         self.createQ(state)                 # Create 'state' in Q-table
         action = self.choose_action(state)  # Choose an action
-        reward = self.env.act(self, action) # Receive a reward
+        reward = self.env.act(self, action, self.waypoint) # Receive a reward
         self.learn(state, action, reward)   # Q-learn
 
         return
@@ -195,7 +197,7 @@ def run():
     #   learning   - set to True to force the driving agent to use Q-learning
     #    * epsilon - continuous value for the exploration factor, default is 1
     #    * alpha   - continuous value for the learning rate, default is 0.5
-    agent = env.create_agent(LearningAgent,learning=True, optimized=optimized)
+    agent = env.create_agent(LearningAgent,learning=True, optimized=optimized, epsilon=1.0, alpha=.6)
     
     ##############
     # Follow the driving agent

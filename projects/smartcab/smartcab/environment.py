@@ -259,7 +259,7 @@ class Environment(object):
 
         return self.agent_states[agent]['deadline'] if agent is self.primary_agent else None
 
-    def act(self, agent, action):
+    def act(self, agent, action, waypoint):
         """ Consider an action and perform the action if it is legal.
             Receive a reward for the agent based on traffic laws. """
 
@@ -287,7 +287,10 @@ class Environment(object):
 
         # Create a penalty factor as a function of remaining deadline
         # Scales reward multiplicatively from [0, 1]
-        fnc = self.t * 1.0 / (self.t + state['deadline']) if agent.primary_agent else 0.0
+        deadline = self.get_deadline(agent)
+        if not deadline:
+            deadline = 1.0
+        fnc = self.t * 1.0 / (self.t + deadline)
         gradient = 10
         
         # No penalty given to an agent that has no enforced deadline
@@ -333,7 +336,7 @@ class Environment(object):
 
         # Did the agent attempt a valid move?
         if violation == 0:
-            if action == agent.get_next_waypoint(): # Was it the correct action?
+            if action == waypoint: # Was it the correct action?
                 reward += 2 - penalty # (2, 1)
             elif action == None and light != 'green': # Was the agent stuck at a red light?
                 reward += 2 - penalty # (2, 1)
@@ -461,4 +464,4 @@ class DummyAgent(Agent):
         if action_okay:
             action = self.next_waypoint
             self.next_waypoint = random.choice(Environment.valid_actions[1:])
-        reward = self.env.act(self, action)
+        reward = self.env.act(self, action, self.next_waypoint)
