@@ -341,7 +341,7 @@ class Environment(object):
             elif action == None and light != 'green': # Was the agent stuck at a red light?
                 reward += 2 - penalty # (2, 1)
             else: # Valid but incorrect
-                reward += 1 - penalty # (1, 0)
+                reward += - penalty # (1, 0)
 
             # Move the agent
             if action is not None:

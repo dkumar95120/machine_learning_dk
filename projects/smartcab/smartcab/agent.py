@@ -3,7 +3,7 @@ import math
 from environment import Agent, Environment
 from planner import RoutePlanner
 from simulator import Simulator
-tolerance = .1
+tolerance = .05
 class LearningAgent(Agent):
     """ An agent that learns to drive in the Smartcab world.
         This is the object you will be modifying. """ 
@@ -49,9 +49,9 @@ class LearningAgent(Agent):
         else:
         # Update epsilon using a decay function
             if self.optimized:
-                self.epsilon = 1.0 / math.sqrt(self.trials + 1.)
+                self.epsilon = 1.0/math.sqrt(1.0+self.trials)
             else:  
-               self.epsilon -= .0025   # linear decay
+               self.epsilon -= .05   # linear decay
 
 
         return None
@@ -72,13 +72,17 @@ class LearningAgent(Agent):
 
     def printQ(self):
         print "Q Matrix"
-        print "{0:40},".format(' waypoint, light, oncoming-t,  left-t'),
+        print "{0:40},".format(' waypoint,    light, oncoming, l-traffic'),
         for action in self.valid_actions:
-            print "{0:>10},".format(action),
+            if action:
+                print "{0:>10},".format(action),
+            else:
+                print "{0:>9},".format(action),
         print 'Best Action\n'
         for state in self.Q:
             _, best_action = self.get_maxQ(state)
-            print "{0:40},".format(state),
+            waypoint, light, oncoming, left_traffic = state
+            print "{0:>9},{1:>9},{2:>9},{3:>9},".format(waypoint, light, oncoming, left_traffic),
             for action in self.valid_actions:
                 print "{0:10.3f},".format(self.Q[state][action]),
             print "{0:>10}".format(best_action)
@@ -189,7 +193,7 @@ def run():
     #   num_dummies - discrete number of dummy agents in the environment, default is 100
     #   grid_size   - discrete number of intersections (columns, rows), default is (8, 6)
     env = Environment()
-    optimized = False
+    optimized = True
     
     ##############
     # Create the driving agent
@@ -219,7 +223,7 @@ def run():
     # Flags:
     #   tolerance  - epsilon tolerance before beginning testing, default is 0.05 
     #   n_test     - discrete number of testing trials to perform, default is 0
-    sim.run(tolerance=tolerance, n_test=20)
+    sim.run(tolerance=tolerance, n_test=100)
     agent.printQ()
 
 
