@@ -6,48 +6,83 @@ import tensorflow as tf
 from six.moves import cPickle as pickle
 from six.moves import range
 import scipy.io as sio
+import matplotlib.pyplot as plt
 
-train_data = sio.loadmat('train_32x32.mat')
-test_data  = sio.loadmat('test_32x32.mat')
+def reformat(X, Y, image_size, num_channels, num_labels):
+	x = np.zeros((X.shape[3],image_size,image_size,num_channels),dtype=np.float32)
+	for i in range(X.shape[3]):
+		x[i,] = X[:,:,:,i]
+	y = (np.arange(num_labels) == Y[:,None]).astype(np.float32)
+	return x, y
 
-X_data = train_data['X']
-y_data = train_data['y'].reshape(-1)
-X_test = test_data['X']
-y_test = test_data['y'].reshape(-1)
-
-print('Data Set      X Shape,       Y_shape')
-print('Training', X_data.shape, y_data.shape)
-print('Testing ', X_test.shape, y_test.shape)
-
-# normalize X values between -1 to 1
-print('Normalizing X_data')
-X_data = (X_data - 128.)/128.
-print('Normalizing X_test')
-X_test = (X_test - 128.)/128.
-
-image_size   = X_data.shape[0] #TODO: image size
-num_labels   = 10 #TODO: number of different label types
-num_channels = X_data.shape[2] #TODO: set as 1:grayscale, or 3: color (RGB)
-
-def reformat(dataset, labels):
+def reformat_mnist(dataset, labels, image_size, num_channels, num_labels):
 	dataset = dataset.reshape((-1, image_size, image_size, num_channels)).astype(np.float32)
 	labels = (np.arange(num_labels) == labels[:,None]).astype(np.float32)
 	return dataset, labels
 
-# reshape data for input to CNN model
-X_data, y_data = reformat(X_data, y_data)
-X_test, y_test = reformat(X_test, y_test)
+mnist_data = False
+if mnist_data:
+	pickle_file = 'notMNIST.pickle'
 
-#split X_data, y_data into two chunks of training and validation data
-ntrain = round(.8*X_data.shape[0])
-X_train = X_data[:ntrain]
-y_train = y_data[:ntrain]
-X_valid = X_data[ntrain:]
-y_valid = y_data[ntrain:]
+	with open(pickle_file, 'rb') as f:
+		save = pickle.load(f)
+		train_dataset = save['train_dataset']
+		train_labels = save['train_labels']
+		valid_dataset = save['valid_dataset']
+		valid_labels = save['valid_labels']
+		test_dataset = save['test_dataset']
+		test_labels = save['test_labels']
+		del save  # hint to help gc free up memory
+		print('MNIST Training set', train_dataset.shape, train_labels.shape)
+		print('MNIST Validation set', valid_dataset.shape, valid_labels.shape)
+		print('MNIST Test set', test_dataset.shape, test_labels.shape)
 
-print('Training  ', X_train.shape, y_train.shape)
-print('Validation', X_valid.shape, y_valid.shape)
-print('Testing   ', X_test.shape,  y_test.shape)
+	image_size   = train_dataset.shape[1] #image size
+	num_labels   = 10 #TODO: number of different label types
+	num_channels = 1 #set as 1:grayscale, or 3: color (RGB)
+
+	X_train, y_train = reformat_mnist(train_dataset, train_labels, image_size, num_channels, num_labels)
+	X_valid, y_valid = reformat_mnist(valid_dataset, valid_labels, image_size, num_channels, num_labels)
+	X_test,  y_test  = reformat_mnist(test_dataset,  test_labels,  image_size, num_channels, num_labels)
+
+	print('MNIST Training set',   X_train.shape, y_train.shape)
+	print('MNIST Validation set', X_valid.shape, y_valid.shape)
+	print('MNIST Testing set',    X_test.shape,  y_test.shape)
+else:
+	train_data = sio.loadmat('train_32x32.mat')
+	test_data  = sio.loadmat('test_32x32.mat')
+
+	X_data = train_data['X']
+	y_data = train_data['y'].reshape(-1)
+	X_test = test_data['X']
+	y_test = test_data['y'].reshape(-1)
+
+	print('Real Data     X Shape,       Y_shape')
+	print('Training', X_data.shape, y_data.shape)
+	print('Testing ', X_test.shape, y_test.shape)
+
+	image_size   = X_data.shape[0] #TODO: image size
+	num_labels   = 10 #TODO: number of different label types
+	num_channels = X_data.shape[2] #TODO: set as 1:grayscale, or 3: color (RGB)
+
+	# reshape data for input to CNN model
+	X_data, y_data = reformat(X_data, y_data, image_size, num_channels, num_labels)
+	X_test, y_test = reformat(X_test, y_test, image_size, num_channels, num_labels)
+
+	# normalize X values between 0 to 1
+	X_data = X_data/255
+	X_test = X_test/255
+
+	#split X_data, y_data into two chunks of training and validation data
+	ntrain = round(.8*X_data.shape[0])
+	X_train = X_data[:ntrain]
+	y_train = y_data[:ntrain]
+	X_valid = X_data[ntrain:]
+	y_valid = y_data[ntrain:]
+
+	print('Training  ', X_train.shape, y_train.shape)
+	print('Validation', X_valid.shape, y_valid.shape)
+	print('Testing   ', X_test.shape,  y_test.shape)
 
 def accuracy(predictions, labels):
 	return (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1)) / predictions.shape[0])
@@ -69,15 +104,20 @@ def model(X, weights, biases, maxpool=False, dropout=False):
 	nlayer = len(weights.keys())
 	hidden = X
 	for layer in range(nlayer-2):
+		print("shape before conv layer:", hidden.get_shape(), weights[layer].get_shape())
 		hidden = tf.nn.relu(conv2d(hidden, weights[layer]) + biases[layer])
+		print("shape after conv layer:", hidden.get_shape())
 		if maxpool:
 			hidden = max_pool_2x2(hidden)
+			print("shape after maxpool layer:", hidden.get_shape())
 		if (dropout):
-			hidden = tf.nn.dropout(hidden, .75)
+			hidden = tf.nn.dropout(hidden, .8)
 
-	shape = hidden.get_shape().as_list()
+	shape  = hidden.get_shape().as_list()
 	hidden = tf.reshape(hidden, [shape[0], shape[1] * shape[2] * shape[3]])
+	print("shape for fully connected relu layer:", hidden.get_shape(), weights[nlayer-2].get_shape())
 	hidden = tf.nn.relu(tf.matmul(hidden, weights[nlayer-2]) + biases[nlayer-2])
+	print("shape for fully connected output layer:", hidden.get_shape(), weights[nlayer-1].get_shape())
 	logits = tf.matmul(hidden, weights[nlayer-1]) + biases[nlayer-1]
 	return logits
 
@@ -86,7 +126,7 @@ graph = tf.Graph()
 with graph.as_default():
 	# Input data.
 	tf_X_train = tf.placeholder(tf.float32, shape=(batch_size, image_size, image_size, num_channels))
-	tf_y_train  = tf.placeholder(tf.float32, shape=(batch_size, num_labels))
+	tf_y_train = tf.placeholder(tf.float32, shape=(batch_size, num_labels))
 	tf_X_valid = tf.constant(X_valid)
 	tf_X_test  = tf.constant(X_test)
 
@@ -100,14 +140,16 @@ with graph.as_default():
 	biases[0]  = tf.Variable(tf.zeros([depth]))
 	weights[1] = tf.Variable(tf.truncated_normal([patch_size, patch_size, depth, depth], stddev=0.1))
 	biases[1]  = tf.Variable(tf.constant(1.0, shape=[depth]))
-	dim1       = depth*4
+	dim1       = depth*(image_size // 4)*(image_size // 4)
+	if maxpool:
+		dim1 = dim1//16
 	weights[2] = tf.Variable(tf.truncated_normal([dim1, num_hidden], stddev=0.1))
 	biases[2]  = tf.Variable(tf.constant(1.0, shape=[num_hidden]))
 	weights[3] = tf.Variable(tf.truncated_normal([num_hidden, num_labels], stddev=0.1))
 	biases[3]  = tf.Variable(tf.constant(1.0, shape=[num_labels]))
 
 	# Build CNN model using specified weights with option to maxpool and dropout
-	logits = model(tf_X_train, weights, biases, maxpool=True, dropout=True)
+	logits = model(tf_X_train, weights, biases, maxpool, dropout)
 
 	# Training computation.
 	loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=tf_y_train, logits=logits))
