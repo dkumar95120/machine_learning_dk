@@ -88,17 +88,17 @@ def accuracy(predictions, labels):
 	return (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1)) / predictions.shape[0])
 
 def conv2d(x, W):
-	return tf.nn.conv2d(x, W, strides=[1, 2, 2, 1], padding='SAME')
+	return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 def max_pool_2x2(x):
 	return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-batch_size = 128
-patch_size = 14
-depth      = 16
-num_hidden = 128
+batch_size = 64
+patch_size = 5
+depth      = 64
+num_hidden = 1024
 maxpool    = True
-dropout    = False
+dropout    = True
 # build a convolutional model for the given input data, weights and biases
 def model(X, weights, biases, maxpool=False, dropout=False):
 	nlayer = len(weights.keys())
@@ -117,6 +117,8 @@ def model(X, weights, biases, maxpool=False, dropout=False):
 	hidden = tf.reshape(hidden, [shape[0], shape[1] * shape[2] * shape[3]])
 	print("shape for fully connected relu layer:", hidden.get_shape(), weights[nlayer-2].get_shape())
 	hidden = tf.nn.relu(tf.matmul(hidden, weights[nlayer-2]) + biases[nlayer-2])
+	if (dropout):
+		hidden = tf.nn.dropout(hidden, .8)
 	print("shape for fully connected output layer:", hidden.get_shape(), weights[nlayer-1].get_shape())
 	logits = tf.matmul(hidden, weights[nlayer-1]) + biases[nlayer-1]
 	return logits
@@ -140,9 +142,7 @@ with graph.as_default():
 	biases[0]  = tf.Variable(tf.zeros([depth]))
 	weights[1] = tf.Variable(tf.truncated_normal([patch_size, patch_size, depth, depth], stddev=0.1))
 	biases[1]  = tf.Variable(tf.constant(1.0, shape=[depth]))
-	dim1       = depth*(image_size // 4)*(image_size // 4)
-	if maxpool:
-		dim1 = dim1//16
+	dim1       = depth*8*8
 	weights[2] = tf.Variable(tf.truncated_normal([dim1, num_hidden], stddev=0.1))
 	biases[2]  = tf.Variable(tf.constant(1.0, shape=[num_hidden]))
 	weights[3] = tf.Variable(tf.truncated_normal([num_hidden, num_labels], stddev=0.1))
