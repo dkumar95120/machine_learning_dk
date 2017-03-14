@@ -37,7 +37,7 @@ print('train label shape', y_input.shape)
 print('valid label shape', y_valid.shape)
 print('tests label shape', y_tests.shape)
 
-def accuracy(y, labels, ndigit, num_labels):
+def accuracy(y, labels):
 	return (100.0 * np.sum(np.argmax(y, 2).T == labels) / y.shape[1] / y.shape[0])
 # helper function to generate a convolution of size nxm with a stride of nxm for input data and its weights
 def conv2d(x, w, n, m):
@@ -127,7 +127,7 @@ def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_c
 
 		# Optimize using Gradient Descent
 		global_step = tf.Variable(0)  # count the number of steps taken.
-		init_learning_rate = 0.1
+		init_learning_rate = 0.01
 		learning_rate = tf.train.exponential_decay(init_learning_rate, global_step, decay_steps=100000, decay_rate=0.95, staircase=True)
 		#optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
 		optimizer = tf.train.AdagradOptimizer(learning_rate).minimize(loss, global_step=global_step)
@@ -158,6 +158,11 @@ def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_c
 		# biases. 
 		tf.global_variables_initializer().run()
 		print ('\nstep#       Loss     Training Accuracy Validation Accuracy')
+
+		y_temp       = np.zeros([batch_size, ndigit, num_labels], dtype=np.int32)
+		y_valid_temp = np.zeros([y_valid.shape[0], y_valid.shape[1], num_labels], dtype=np.int32)
+		y_test_temp  = np.zeros([y_test.shape[0], y_test.shape[1], num_labels], dtype=np.int32)
+
 		for step in range(num_steps):
 			offset = (step * batch_size) % (num_samples - batch_size)
 			# Generate a minibatch from the training dataset for Stocastic Gradient Descent
@@ -172,11 +177,28 @@ def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_c
 			# Run the computations. We tell .run() that we want to run the optimizer,
 			# and get the loss value and the training predictions returned as numpy arrays.
 			if (step % print_steps == 0):
-				print('{0:5d} {1:10.2f} {2:15.2f} {3:15.2f}'.format(step, l, 
-				accuracy(y_pred, batch_y, ndigit, num_classes), 
-				accuracy(y_valid_pred.eval(), y_valid, ndigit, num_classes)))
+				for i in range(batch_y.shape[0]):
+					for j in range(batch_y.shape[1]):
+						for k in range(num_labels):
+							y_temp[i,j,k] = y_pred[j,i,k]
+
+				y_valid_eval = y_valid_pred.eval()
+				for i in range(y_valid.shape[0]):
+					for j in range(y_valid.shape[1]):
+						for k in range(num_labels):
+							y_valid_temp[i,j,k] = y_valid_eval[j,i,k]
+
+				print('{0:5d} {1:10.2f} {2:15.2f} {3:15.2f}'.format(step, l, accuracy(y_pred, batch_y), 
+				accuracy(y_valid_eval, y_valid)))
 				# Calling .eval() on valid_prediction is basically like calling run()
-		print('Test accuracy: {:.1f}'.format(accuracy(y_test_pred.eval(), y_test, ndigit, num_classes)))
+		y_test_eval = y_test_pred.eval()
+		for i in range(y_test.shape[0]):
+			for j in range(y_test.shape[1]):
+				for k in range(num_labels):
+					y_test_temp[i,j,k] = y_test_eval[j,i,k]
+
+		print('Test accuracy: {:.1f}'.format(accuracy(y_test_eval, y_test)))
+	return y_test_eval, y_valid_eval
 
 image_size = X_train.shape[1]
 batch_size = 64
@@ -185,11 +207,11 @@ num_channels = X_train.shape[3]
 image = [image_size, image_size, num_channels]
 print ('image size',image)
 nclass = num_labels
-num_steps = 2501
+num_steps = 1001
 print_steps = 100
 ndigit = 4 # our synthetic data has only 4 digits
 dropout = False
 num_samples=0 # try with full dataset first
-n_layer_nn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, image, nclass, ndigit,
-            batch_size, num_nodes, num_samples, num_steps, print_steps, dropout)
+y_test_pred, y_valid_pred = n_layer_nn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, image, nclass, ndigit,
+									            batch_size, num_nodes, num_samples, num_steps, print_steps, dropout)
 
