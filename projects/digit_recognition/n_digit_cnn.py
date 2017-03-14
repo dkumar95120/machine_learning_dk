@@ -36,19 +36,14 @@ print('train label shape', y_input.shape)
 print('valid label shape', y_valid.shape)
 print('tests label shape', y_tests.shape)
 
-patch_size = 5
-conv_stride= 1
-pool_size  = 2
-pool_stride= 2
-padding = 'SAME'
 
 def accuracy(y, labels):
 	return (100.0 * np.sum(np.argmax(y, 2).T == labels) / y.shape[1] / y.shape[0])
-def conv2d(x, W):
-	return tf.nn.conv2d(x, W, strides=[1, conv_stride, conv_stride, 1], padding=padding)
+def conv2d(x, W, conv_stride, padopt):
+	return tf.nn.conv2d(x, W, strides=[1, conv_stride, conv_stride, 1], padding=padopt)
 
-def max_pool_2x2(x):
-	return tf.nn.max_pool(x, ksize=[1, pool_size, pool_size, 1], strides=[1, pool_stride, pool_stride, 1], padding=padding)
+def max_pool(x, pool_size, pool_stride, padopt):
+	return tf.nn.max_pool(x, ksize=[1, pool_size, pool_size, 1], strides=[1, pool_stride, pool_stride, 1], padding=padopt)
 
 # Create Variables Function
 def weights_conv(shape, name):
@@ -62,21 +57,20 @@ def weights_fc(shape, name):
 def biases_var(shape, name):
     return tf.Variable(tf.constant(0.1, shape=shape), name=name)
 
-def model (X, weights, biases, nconv, dropout=False):
+def model (X, weights, biases, nconv, conv_params, dropout=False):
 	#initialize relu_logits as the input dataset
+	[patch_size, conv_stride, pool_size, pool_stride, padopt] = conv_params
 	nlayer = len(weights.keys())
 	hidden = X
 	# build convolution layers
 	for layer in range(nconv):
-		hidden = tf.nn.relu(conv2d(hidden, weights[layer]) + biases[layer])
-		hidden = max_pool_2x2(hidden)
+		hidden = tf.nn.relu(conv2d(hidden, weights[layer], conv_stride, padopt) + biases[layer])
+		hidden = max_pool(hidden, pool_size, pool_stride, padopt)
 		if (dropout):
 			hidden = tf.nn.dropout(hidden, .8)
 
 	shape  = hidden.get_shape().as_list()
 	cur_logits = tf.reshape(hidden, [shape[0], shape[1] * shape[2] * shape[3]])
-
-	print ('First FC full dimensions', cur_logits.shape)
 
 	for layer in range(nconv, nlayer):
 		logits = tf.matmul(cur_logits, weights[layer]) + biases[layer]
@@ -94,7 +88,7 @@ def model (X, weights, biases, nconv, dropout=False):
 # 2 Max Pooling
 # final_image_size = output_size_pool(image_size, patch_size, conv_stride, pool_size, pool_stride, nlayer
 
-def output_size_pool(input_size, conv_filter_size, conv_stride, pool_filter_size, pool_stride, nlayer):
+def output_size_pool(input_size, conv_filter_size, conv_stride, pool_filter_size, pool_stride, nlayer, padding):
 
     pad = 1.0 if padding == 'SAME' else 0.0
 
@@ -107,9 +101,29 @@ def output_size_pool(input_size, conv_filter_size, conv_stride, pool_filter_size
 
     return int(output)
 
+def pack(y):
+	nitems = len(y.keys())
+	if nitems > 5:
+		print ("too much to pack")
+		y_pack = None
+	elif nitems == 5:
+		y_pack = tf.stack([y[0],y[1], y[2], y[3], y[4]])
+	elif nitems == 4:
+		y_pack = tf.stack([y[0],y[1], y[2], y[3]])
+	elif nitems == 3:
+		y_pack = tf.stack([y[0],y[1], y[2]])
+	elif nitems == 3:
+		y_pack = tf.stack([y[0],y[1], y[2]])
+	else:
+		print("nothing to pack")
+		y_pack = None
+
+	return y_pack
+
+
 #Create a single hidden layer neural network using RELU and 1024 nodes
 def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_classes, ndigit,
-				batch_size=128, num_samples=0, num_steps = 1001, print_steps=100, dropout=False):
+				conv_params, batch_size=128, num_samples=0, num_steps = 1001, print_steps=100, dropout=False):
 	beta = .01
 	if num_samples ==0:
 		num_samples = X_train.shape[0]
@@ -118,10 +132,10 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 	graph = tf.Graph()
 	#build nodes array and append it with the number of classes which is final number of nodes
 
-	batch_size = 64
+	[patch_size, conv_stride, pool_size, pool_stride, padopt] = conv_params
 	image_size = image[0]
 	depth      = [ 8, 16, 32]
-	num_hidden = [128, 32]
+	num_hidden = [128, 64, 32]
 
 	with graph.as_default():
 
@@ -149,7 +163,7 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 		print ("convolution dimensions", conv_dim)
 
 		# build FC layers dimensions
-		final_image_size = output_size_pool(image_size, patch_size, conv_stride, pool_size, pool_stride, len(depth))
+		final_image_size = output_size_pool(image_size, patch_size, conv_stride, pool_size, pool_stride, len(depth), padopt)
 		hidden_dim = [final_image_size*final_image_size*depth[-1]] + num_hidden + [num_classes]
 		print ("hidden dimensions", hidden_dim)
 
@@ -176,7 +190,7 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 				w_l2_loss = tf.nn.l2_loss(weights[digit][layer])
 				regularizers = regularizers + w_l2_loss
 
-			logits[digit] = model (tf_X_train, weights[digit], biases[digit], nconv, dropout)
+			logits[digit] = model (tf_X_train, weights[digit], biases[digit], nconv, conv_params, dropout)
 			loss += tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf_y_train[:,digit], logits=logits[digit]))
 
 		# Loss function with L2 Regularization with beta
@@ -194,21 +208,21 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 		for digit in range(ndigit):
 			y_pred[digit] = tf.nn.softmax(logits[digit])
 
-		y_train_pred = tf.stack([y_pred[0],y_pred[1], y_pred[2], y_pred[3]])
+		y_train_pred = pack(y_pred)
 
 		# Transform validation samples using the same transformation used above for training samples
 		for digit in range(ndigit):
-			valid_logits = model (tf_X_valid, weights[digit], biases[digit], nconv, dropout)
+			valid_logits = model (tf_X_valid, weights[digit], biases[digit], nconv, conv_params, dropout)
 			y_pred[digit] = tf.nn.softmax(valid_logits)
 
-		y_valid_pred = tf.stack([y_pred[0],y_pred[1], y_pred[2], y_pred[3]])
+		y_valid_pred = pack(y_pred)
 
 		# Transform test samples using the same transformation used above for training samples
 		for digit in range(ndigit):
-			test_logits = model (tf_X_test, weights[digit], biases[digit], nconv, dropout)
+			test_logits = model (tf_X_test, weights[digit], biases[digit], nconv, conv_params, dropout)
 			y_pred[digit] = tf.nn.softmax(test_logits)
 
-		y_test_pred = tf.stack([y_pred[0],y_pred[1], y_pred[2], y_pred[3]])
+		y_test_pred = pack(y_pred)
 
 
 	with tf.Session(graph=graph) as session:
@@ -262,9 +276,9 @@ patch_size = 5
 conv_stride= 1
 pool_size  = 2
 pool_stride= 2
-padopt = padding
+padopt = 'SAME'
 conv_params = [patch_size, conv_stride, pool_size, pool_stride, padopt]
 
 y_test_pred, y_valid_pred = n_layer_cnn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, image, nclass, ndigit,
-									            batch_size, num_samples, num_steps, print_steps, dropout)
+									     conv_params, batch_size, num_samples, num_steps, print_steps, dropout)
 
