@@ -121,7 +121,7 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 	batch_size = 64
 	image_size = image[0]
 	depth      = [ 8, 16, 32]
-	num_hidden = [64]
+	num_hidden = [128, 32]
 
 	with graph.as_default():
 
