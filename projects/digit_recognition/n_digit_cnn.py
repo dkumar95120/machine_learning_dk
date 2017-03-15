@@ -3,38 +3,37 @@ import numpy as np
 import tensorflow as tf
 from six.moves import cPickle as pickle
 
-pickle_file = 'synthetic.pickle'
+def load_data(pickle_file):
+	with open(pickle_file, 'rb') as f:
+		save = pickle.load(f)
+		X_train = save['train_data']
+		y_train = save['train_labels']
+		X_tests = save['test_data']
+		y_tests = save['test_labels']
+		del save  # hint to help gc free up memory
+		print('Training set', X_train.shape, y_train.shape)
+		print('Testing  set', X_tests.shape, y_tests.shape)
 
-with open(pickle_file, 'rb') as f:
-	save = pickle.load(f)
-	X_train = save['train_data']
-	y_train = save['train_labels']
-	X_tests = save['test_data']
-	y_tests = save['test_labels']
-	del save  # hint to help gc free up memory
-	print('Training set', X_train.shape, y_train.shape)
-	print('Testing  set', X_tests.shape, y_tests.shape)
 
-num_labels=11
-ndigit = y_train.shape[1]  # the first one is the number of digits in that sample
+	# split training data into training and validation sets
+	nsample = y_train.shape[0]
+	ntrain = round(0.9*nsample)
 
-# split training data into training and validation sets
-nsample = y_train.shape[0]
-ntrain = round(0.9*nsample)
+	X_input = X_train[:ntrain]
+	X_valid = X_train[ntrain:]
 
-X_input = X_train[:ntrain]
-X_valid = X_train[ntrain:]
+	print('train data shape', X_input.shape)
+	print('valid data shape', X_valid.shape)
+	print('tests data shape', X_tests.shape)
 
-print('train data shape', X_input.shape)
-print('valid data shape', X_valid.shape)
-print('tests data shape', X_tests.shape)
+	y_input = y_train[:ntrain]
+	y_valid = y_train[ntrain:]
 
-y_input = y_train[:ntrain]
-y_valid = y_train[ntrain:]
+	print('train label shape', y_input.shape)
+	print('valid label shape', y_valid.shape)
+	print('tests label shape', y_tests.shape)
 
-print('train label shape', y_input.shape)
-print('valid label shape', y_valid.shape)
-print('tests label shape', y_tests.shape)
+	return X_train, y_train, X_valid, y_valid, X_tests, y_tests
 
 
 def accuracy(y, labels):
@@ -122,7 +121,7 @@ def pack(y):
 
 
 #Create a single hidden layer neural network using RELU and 1024 nodes
-def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_classes, ndigit,
+def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_labels, ndigit,
 				conv_params, batch_size=128, num_samples=0, num_steps = 1001, print_steps=100, dropout=False):
 	beta = .01
 	if num_samples ==0:
@@ -134,7 +133,7 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 
 	[patch_size, conv_stride, pool_size, pool_stride, padopt] = conv_params
 	image_size = image[0]
-	depth      = [ 8, 16, 32]
+	depth      = [ 8, 16,  32]
 	num_hidden = [128, 64, 32]
 
 	with graph.as_default():
@@ -164,7 +163,7 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 
 		# build FC layers dimensions
 		final_image_size = output_size_pool(image_size, patch_size, conv_stride, pool_size, pool_stride, len(depth), padopt)
-		hidden_dim = [final_image_size*final_image_size*depth[-1]] + num_hidden + [num_classes]
+		hidden_dim = [final_image_size*final_image_size*depth[-1]] + num_hidden + [num_labels]
 		print ("hidden dimensions", hidden_dim)
 
 
@@ -260,15 +259,23 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 		print('Test accuracy: {:.1f}'.format(accuracy(y_test_eval, y_test)))
 	return y_test_eval, y_valid_eval
 
-image_size = X_train.shape[1]
+
+synthetic = False
+if synthetic:
+	pickle_file = 'synthetic.pickle'
+else:
+	pickle_file = 'SVHN.pickle'
+
+X_input, y_input, X_valid, y_valid, X_tests, y_tests = load_data(pickle_file)
+
+image_size = X_input.shape[1]
 batch_size = 64
-num_channels = X_train.shape[3]
+num_channels = X_input.shape[3]
 image = [image_size, image_size, num_channels]
 print ('image size',image)
-nclass = num_labels
-num_steps = 1001
-print_steps = 100
-ndigit = 4 # our synthetic data has only 4 digits
+ndigit = y_input.shape[1]  #number of digits in that sample
+num_steps = 5001
+print_steps = 500
 dropout = False
 num_samples=0 # try with full dataset first
 
@@ -279,6 +286,6 @@ pool_stride= 2
 padopt = 'SAME'
 conv_params = [patch_size, conv_stride, pool_size, pool_stride, padopt]
 
-y_test_pred, y_valid_pred = n_layer_cnn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, image, nclass, ndigit,
+y_test_pred, y_valid_pred = n_layer_cnn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, image, num_labels, ndigit,
 									     conv_params, batch_size, num_samples, num_steps, print_steps, dropout)
 

@@ -2,22 +2,14 @@ import numpy as np
 import cv2
 import sys
 import os
-from PIL import Image
-from six.moves import cPickle as pickle
-from scipy.misc import imresize
+from   PIL import Image
+from   six.moves import cPickle as pickle
+from   scipy.misc import imresize
 import scipy.io as sio
 import matplotlib.pyplot as plt
+import h5py
 
-sys.path.insert(0,"..")
-
-def get_image(imagefiles):
-	nfile = len(imagefiles)
-	img = np.zeros((nfile,32,32,3), dtype=np.float32)
-	for i in range(nfile):
-		img[i,] = cv2.imread(imagefiles[i])
-	return img
-
-
+img_size = 32
 
 def show_bboxes (imagefile):
 	im = cv2.imread(imagefile)
@@ -41,7 +33,6 @@ def show_bboxes (imagefile):
 	cv2.waitKey(0)    
 	cv2.destroyAllWindows()
 
-import h5py
 # The DigitStructFile is just a wrapper around the h5py data.  It basically references 
 #     file_:            The input h5 matlab file
 #     digitStructName   The h5 ref to all the file names
@@ -68,7 +59,7 @@ class DigitStructs:
 		print("\nDataset after before update:", len(data))            
 		return data
        
-	def bboxHelper(self, keys_):
+	def bbox_data(self, keys_):
 		"""
 		Method handles the coding difference when there is exactly one bbox or an array of bbox. 
 		"""
@@ -77,15 +68,15 @@ class DigitStructs:
 		else:
 			val = [keys_.value[0][0]]
 		return val
-	# getBbox returns a dict of data for the n(th) bbox. 
-	def getBbox(self, n):
+	# get_bbox returns a dict of data for the n(th) bbox. 
+	def get_bbox(self, n):
 		bbox = {}
 		bb = self.bboxes[n].item()
-		bbox['height'] = self.bboxHelper(self.file_[bb]["height"])
-		bbox['left'] = self.bboxHelper(self.file_[bb]["left"])
-		bbox['top'] = self.bboxHelper(self.file_[bb]["top"])
-		bbox['width'] = self.bboxHelper(self.file_[bb]["width"])
-		bbox['label'] = self.bboxHelper(self.file_[bb]["label"])
+		bbox['height'] = self.bbox_data(self.file_[bb]["height"])
+		bbox['left']   = self.bbox_data(self.file_[bb]["left"])
+		bbox['top']    = self.bbox_data(self.file_[bb]["top"])
+		bbox['width']  = self.bbox_data(self.file_[bb]["width"])
+		bbox['label']  = self.bbox_data(self.file_[bb]["label"])
 		return bbox
 	def getName(self, n):
 		"""
@@ -94,17 +85,17 @@ class DigitStructs:
 		"""
 		return ''.join([chr(c[0]) for c in self.file_[self.names[n][0]].value])
 
-	def getNumberStructure(self,n):
-		s = self.getBbox(n)
+	def get_digit(self,n):
+		s = self.get_bbox(n)
 		s['name']=self.getName(n)
 		return s
 
-	def getAllNumbersStructure(self):
+	def get_digits_data(self):
 		"""
 		Method returns an array, which contains information about every image.
 		This info contains: positions, labels 
 		"""
-		return [self.getNumberStructure(i) for i in range(self.collectionSize)]
+		return [self.get_digit(i) for i in range(self.collectionSize)]
 
     
     # Return a restructured version of the dataset (one object per digit in 'boxes').
@@ -118,46 +109,41 @@ class DigitStructs:
     #
     # Note: We may turn this to a generator, if memory issues arise.
 	def reformat(self): # getAllDigitStructure_ByDigit
-		numbersData = self.getAllNumbersStructure()
-		print("\nObject structure before transforming: ", numbersData[0])
-		self.remove_anomaly_samples(numbersData)
+		digit_data = self.get_digits_data()
+		print("\nObject structure before transforming: ", digit_data[0])
+		self.remove_anomaly_samples(digit_data)
 
 		result = []
-		for numData in numbersData:
+		for digit in digit_data:
 			metadatas = []
-			for i in range(len(numData['height'])):
+			for i in range(len(digit['height'])):
 				metadata = {}
-				metadata['height'] = numData['height'][i]
-				metadata['label']  = numData['label'][i]
-				metadata['left']   = numData['left'][i]
-				metadata['top']    = numData['top'][i]
-				metadata['width']  = numData['width'][i]
+				metadata['height'] = digit['height'][i]
+				metadata['label']  = digit['label'][i]
+				metadata['left']   = digit['left'][i]
+				metadata['top']    = digit['top'][i]
+				metadata['width']  = digit['width'][i]
 				metadatas.append(metadata)
 
-			result.append({ 'boxes':metadatas, 'name':numData["name"] })
+			result.append({ 'boxes':metadatas, 'name':digit["name"] })
 
 		print("\nObject structure after transforming: ", result[0])
 
 		return result
 
-img_size = 32
-
 def prepare_images(samples, folder):
-    print("Started preparing images for convnet...")
-    
-    prepared_images = np.ndarray([len(samples),img_size,img_size,1], dtype='float32')
-    actual_numbers = np.ones([len(samples),6], dtype=int) * 10
+    print("Started preparing images...")
+    ndigits = 5
+    prepared_images = np.ndarray([len(samples), img_size, img_size, 1], dtype='float32')
+    digit_labels    = np.zeros([len(samples), ndigits], dtype=int) * 10
     files = []
     for i in range(len(samples)):
         filename = samples[i]['name']
         filepath = os.path.join(folder, filename)
-        image = Image.open(filepath)
-        boxes = samples[i]['boxes']
+        image    = Image.open(filepath)
+        boxes     = samples[i]['boxes']
         number_length = len(boxes)
         files.append(filename)
-        
-        # at 0 index we store length of a label. 3 -> 1; 123-> 3, 12543 -> 5
-        actual_numbers[i,0] = number_length
         
         top = np.ndarray([number_length], dtype='float32')
         left = np.ndarray([number_length], dtype='float32')
@@ -166,24 +152,24 @@ def prepare_images(samples, folder):
         
         for j in range(number_length):
             # here we use j+1 since first entry used by label length
-            actual_numbers[i,j+1] = boxes[j]['label']
-            if boxes[j]['label'] == 10: # Replacing 10 with 0
-                actual_numbers[i,j+1] = 0
-                
-            top[j] = boxes[j]['top']
-            left[j] = boxes[j]['left']
-            height[j] = boxes[j]['height']
-            width[j] = boxes[j]['width']
-        
-        img_min_top = np.amin(top)
-        img_min_left = np.amin(left)
-        img_height = np.amax(top) + height[np.argmax(top)] - img_min_top
-        img_width = np.amax(left) + width[np.argmax(left)] - img_min_left
+            digit_labels[i,j] = boxes[j]['label'] % 10                
+            top[j]            = boxes[j]['top']
+            left[j]           = boxes[j]['left']
+            height[j]         = boxes[j]['height']
+            width[j]          = boxes[j]['width']
 
-        img_left = np.floor(img_min_left - 0.1 * img_width)
-        img_top = np.floor(img_min_top - 0.1 * img_height)
-        img_right = np.amin([np.ceil(img_left + 1.2 * img_width), image.size[0]])
-        img_bottom = np.amin([np.ceil(img_top + 1.2 * img_height), image.size[1]])
+        for j in range(number_length,ndigits):
+            digit_labels[i,j] = 10
+
+        img_min_top  = np.amin(top)
+        img_min_left = np.amin(left)
+        img_height   = np.amax(top)  + height[np.argmax(top)] - img_min_top
+        img_width    = np.amax(left) + width[np.argmax(left)] - img_min_left
+
+        img_left   = np.floor(img_min_left - 0.1 * img_width)
+        img_top    = np.floor(img_min_top - 0.1 * img_height)
+        img_right  = np.amin ([np.ceil(img_left + 1.2 * img_width), image.size[0]])
+        img_bottom = np.amin ([np.ceil(img_top + 1.2 * img_height), image.size[1]])
             
         image = image.crop((img_left, img_top, img_right, img_bottom))
         image = image.resize([img_size, img_size], Image.ANTIALIAS) # Resize image to 32x32
@@ -191,12 +177,12 @@ def prepare_images(samples, folder):
         image = (image)/128. - 1. # normalize and cerntralize images
         prepared_images[i] = image.reshape(img_size,img_size,1)
         
-    print("Completed. Images cropped, resized and grayscaled")
+    print("Images cropped, resized, grayscaled and normalized")
     
-    return prepared_images, actual_numbers, files
+    return prepared_images, digit_labels, files
 
 from sklearn.utils import shuffle
-prepare_test_data = False
+prepare_test_data = True
 if prepare_test_data:
 	file_ = '.\\train\\digitStruct.mat'
 	dsf = DigitStructs(file_)
@@ -217,10 +203,10 @@ if prepare_test_data:
 	try:
 		f = open(pickle_file, 'wb')
 		save = {
-				'train_data': train_data,
+				'train_data'  : train_data,
 				'train_labels': train_labels,
-				'test_data': test_data,
-				'test_labels': test_labels,
+				'test_data'   : test_data,
+				'test_labels' : test_labels,
 				}
 		pickle.dump(save, f, pickle.HIGHEST_PROTOCOL)
 		f.close()
@@ -274,6 +260,7 @@ def synthesize_images_and_labels (X, y, img_size=32):
 
 	return new_images, labels
 
+
 def create_synthetic_images():
 	train_data = sio.loadmat('train_32x32.mat')
 	test_data  = sio.loadmat('test_32x32.mat')
@@ -305,23 +292,26 @@ def create_synthetic_images():
 	print ('input shape', input_shape)
 	return X_train, y_train, X_test, y_test
 
-X_train, y_train, X_test, y_test = create_synthetic_images()
+build_synthetic_images=False
+if build_synthetic_images:
 
-pickle_file = 'synthetic.pickle'
+	X_train, y_train, X_test, y_test = create_synthetic_images()
 
-try:
-    f = open(pickle_file, 'wb')
-    save = {
-        'train_data':   X_train,
-        'train_labels': y_train,
-        'test_data':    X_test,
-        'test_labels':  y_test,
-        }
-    pickle.dump(save, f, pickle.HIGHEST_PROTOCOL)
-    f.close()
-except Exception as e:
-    print('Unable to save data to', pickle_file, ':', e)
-    raise
-statinfo = os.stat(pickle_file)
-print('Compressed pickle size:', statinfo.st_size)
+	pickle_file = 'synthetic.pickle'
+
+	try:
+	    f = open(pickle_file, 'wb')
+	    save = {
+	        'train_data'  : X_train,
+	        'train_labels': y_train,
+	        'test_data'   : X_test,
+	        'test_labels' : y_test,
+	        }
+	    pickle.dump(save, f, pickle.HIGHEST_PROTOCOL)
+	    f.close()
+	except Exception as e:
+	    print('Unable to save data to', pickle_file, ':', e)
+	    raise
+	statinfo = os.stat(pickle_file)
+	print('Compressed pickle size:', statinfo.st_size)
 

@@ -3,38 +3,38 @@ import numpy as np
 import tensorflow as tf
 from six.moves import cPickle as pickle
 
-pickle_file = 'synthetic.pickle'
 
-with open(pickle_file, 'rb') as f:
-	save = pickle.load(f)
-	X_train = save['train_data']
-	y_train = save['train_labels']
-	X_tests = save['test_data']
-	y_tests = save['test_labels']
-	del save  # hint to help gc free up memory
-	print('Training set', X_train.shape, y_train.shape)
-	print('Testing  set', X_tests.shape, y_tests.shape)
+def load_data(pickle_file)
 
-num_labels=11
-ndigit = y_train.shape[1]  # the first one is the number of digits in that sample
+	with open(pickle_file, 'rb') as f:
+		save = pickle.load(f)
+		X_train = save['train_data']
+		y_train = save['train_labels']
+		X_tests = save['test_data']
+		y_tests = save['test_labels']
+		del save  # hint to help gc free up memory
+		print('Training set', X_train.shape, y_train.shape)
+		print('Testing  set', X_tests.shape, y_tests.shape)
 
-# split training data into training and validation sets
-nsample = y_train.shape[0]
-ntrain = round(0.9*nsample)
+	# split training data into training and validation sets
+	nsample = y_train.shape[0]
+	ntrain = round(0.9*nsample)
 
-X_input = X_train[:ntrain]
-X_valid = X_train[ntrain:]
+	X_input = X_train[:ntrain]
+	X_valid = X_train[ntrain:]
 
-print('train data shape', X_input.shape)
-print('valid data shape', X_valid.shape)
-print('tests data shape', X_tests.shape)
+	print('train data shape', X_input.shape)
+	print('valid data shape', X_valid.shape)
+	print('tests data shape', X_tests.shape)
 
-y_input = y_train[:ntrain]
-y_valid = y_train[ntrain:]
+	y_input = y_train[:ntrain]
+	y_valid = y_train[ntrain:]
 
-print('train label shape', y_input.shape)
-print('valid label shape', y_valid.shape)
-print('tests label shape', y_tests.shape)
+	print('train label shape', y_input.shape)
+	print('valid label shape', y_valid.shape)
+	print('tests label shape', y_tests.shape)
+
+	return X_input, y_input, X_valid, y_valid, X_tests, y_tests
 
 def accuracy(y, labels):
 	return (100.0 * np.sum(np.argmax(y, 2).T == labels) / y.shape[1] / y.shape[0])
@@ -56,7 +56,7 @@ def model (X, weights, biases, dropout=False):
 	return logits
 
 #Create a single hidden layer neural network using RELU and 1024 nodes
-def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_classes, ndigit,
+def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_labels, ndigit,
 	batch_size=128, num_nodes=[1024], num_samples=0, num_steps = 1001, print_steps=100, dropout=False):
 	beta = .01
 	if num_samples ==0:
@@ -69,7 +69,7 @@ def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_c
 	graph = tf.Graph()
 	#build nodes array and append it with the number of classes which is final number of nodes
 	nodes_list = num_nodes
-	nodes_list.append(num_classes)
+	nodes_list.append(num_labels)
 
 	with graph.as_default():
 
@@ -168,18 +168,26 @@ def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_c
 		print('Test accuracy: {:.1f}'.format(accuracy(y_test_eval, y_test)))
 	return y_test_eval, y_valid_eval
 
-image_size = X_train.shape[1]
+
+synthetic = True
+if synthetic:
+	pickle_file = 'synthetic.pickle'
+else:
+	pickle_file = 'SVHN.pickle'
+
+X_input, y_input, X_valid, y_valid, X_tests, y_tests = load_data(pickle_file)
+
+image_size = X_input.shape[1]
 batch_size = 64
 num_nodes  = [4096]
-num_channels = X_train.shape[3]
+num_channels = X_input.shape[3]
 image = [image_size, image_size, num_channels]
 print ('image size',image)
-nclass = num_labels
+num_labels = 11
 num_steps = 5001
 print_steps = 500
-ndigit = 4 # our synthetic data has only 4 digits
+ndigit = y_tests.shape[1] # our synthetic data has only 4 digits
 dropout = False
 num_samples=0 # try with full dataset first
-y_test_pred, y_valid_pred = n_layer_nn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, image, nclass, ndigit,
+y_test_pred, y_valid_pred = n_layer_nn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, image, num_labels, ndigit,
 									            batch_size, num_nodes, num_samples, num_steps, print_steps, dropout)
-

@@ -2,9 +2,12 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 from six.moves import cPickle as pickle
-from keras.utils import np_utils
 
-pickle_file = 'synthetic.pickle'
+synthetic=False
+if synthetic:
+    pickle_file = 'synthetic.pickle'
+else:
+    pickle_file = 'SVHN.pickle'
 
 with open(pickle_file, 'rb') as f:
     save = pickle.load(f)
@@ -20,10 +23,9 @@ num_labels=11
 ndigit = y_train.shape[1]  # the first one is the number of digits in that sample
 
 # split training data into training and validation sets
-nsample = y_train[0].shape[0]
-ntrain = round(.9*nsample)
-nvalid = nsample - ntrain
-ntests = y_test[0].shape[0]
+nsample = y_train.shape[0]
+ntrain  = round(.9*nsample)
+nvalid  = nsample - ntrain
 
 X_input = X_train[:ntrain]
 X_valid = X_train[ntrain:]
