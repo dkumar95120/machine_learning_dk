@@ -4,7 +4,7 @@ import tensorflow as tf
 from six.moves import cPickle as pickle
 
 
-def load_data(pickle_file)
+def load_data(pickle_file):
 
 	with open(pickle_file, 'rb') as f:
 		save = pickle.load(f)
@@ -55,10 +55,30 @@ def model (X, weights, biases, dropout=False):
 
 	return logits
 
+def pack(y):
+	nitems = len(y.keys())
+	if nitems > 5:
+		print ("too much to pack")
+		y_pack = None
+	elif nitems == 5:
+		y_pack = tf.stack([y[0],y[1], y[2], y[3], y[4]])
+	elif nitems == 4:
+		y_pack = tf.stack([y[0],y[1], y[2], y[3]])
+	elif nitems == 3:
+		y_pack = tf.stack([y[0],y[1], y[2]])
+	elif nitems == 2:
+		y_pack = tf.stack([y[0],y[1]])
+	elif nitems == 1:
+		y_pack = y[0]
+	else:
+		print("nothing to pack")
+		y_pack = None
+
+	return y_pack
+
 #Create a single hidden layer neural network using RELU and 1024 nodes
 def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_labels, ndigit,
 	batch_size=128, num_nodes=[1024], num_samples=0, num_steps = 1001, print_steps=100, dropout=False):
-	beta = .01
 	if num_samples ==0:
 		num_samples = X_train.shape[0]
 
@@ -105,6 +125,7 @@ def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_l
 			loss += tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf_y_train[:,digit], logits=logits[digit]))
 
 		# Loss function with L2 Regularization with beta
+		beta = 0.0001
 		loss = tf.reduce_mean(loss + beta * regularizers)
 
 		# Optimize using Gradient Descent
@@ -119,19 +140,19 @@ def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_l
 		for digit in range(ndigit):
 			y_pred[digit] = tf.nn.softmax(logits[digit])
 
-		y_train_pred = tf.stack([y_pred[0],y_pred[1], y_pred[2], y_pred[3]])
+		y_train_pred = pack(y_pred)
 
 		# Transform validation samples using the same transformation used above for training samples
 		for digit in range(ndigit):
 			valid_logits = model (tf_X_valid, weights[digit], biases[digit], dropout)
 			y_pred[digit] = tf.nn.softmax(valid_logits)
-		y_valid_pred = tf.stack([y_pred[0],y_pred[1], y_pred[2], y_pred[3]])
+		y_valid_pred = pack(y_pred)
 
 		# Transform test samples using the same transformation used above for training samples
 		for digit in range(ndigit):
 			test_logits = model (tf_X_test, weights[digit], biases[digit], dropout)
 			y_pred[digit] = tf.nn.softmax(test_logits)
-		y_test_pred = tf.stack([y_pred[0],y_pred[1], y_pred[2], y_pred[3]])
+		y_test_pred = pack(y_pred)
 
 
 	with tf.Session(graph=graph) as session:
@@ -169,7 +190,7 @@ def n_layer_nn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_l
 	return y_test_eval, y_valid_eval
 
 
-synthetic = True
+synthetic = False
 if synthetic:
 	pickle_file = 'synthetic.pickle'
 else:
@@ -177,17 +198,15 @@ else:
 
 X_input, y_input, X_valid, y_valid, X_tests, y_tests = load_data(pickle_file)
 
-image_size = X_input.shape[1]
-batch_size = 64
-num_nodes  = [4096]
-num_channels = X_input.shape[3]
-image = [image_size, image_size, num_channels]
-print ('image size',image)
-num_labels = 11
-num_steps = 5001
+ndigit      = y_tests.shape[1] # our synthetic data has only 4 digits
+image       = [X_input.shape[1], X_input.shape[2], X_input.shape[3]]
+batch_size  = 64
+num_nodes   = [4096,512]
+num_labels  = 11
+num_steps   = 5001
 print_steps = 500
-ndigit = y_tests.shape[1] # our synthetic data has only 4 digits
-dropout = False
-num_samples=0 # try with full dataset first
+dropout     = True
+num_samples =0 # full dataset; otherwise specify the subset
+print ('image size',image)
 y_test_pred, y_valid_pred = n_layer_nn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, image, num_labels, ndigit,
-									            batch_size, num_nodes, num_samples, num_steps, print_steps, dropout)
+										batch_size, num_nodes, num_samples, num_steps, print_steps, dropout)

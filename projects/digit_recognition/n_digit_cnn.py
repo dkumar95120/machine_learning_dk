@@ -111,8 +111,10 @@ def pack(y):
 		y_pack = tf.stack([y[0],y[1], y[2], y[3]])
 	elif nitems == 3:
 		y_pack = tf.stack([y[0],y[1], y[2]])
-	elif nitems == 3:
-		y_pack = tf.stack([y[0],y[1], y[2]])
+	elif nitems == 2:
+		y_pack = tf.stack([y[0],y[1]])
+	elif nitems == 1:
+		y_pack = y[0]
 	else:
 		print("nothing to pack")
 		y_pack = None
@@ -121,9 +123,8 @@ def pack(y):
 
 
 #Create a single hidden layer neural network using RELU and 1024 nodes
-def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_labels, ndigit,
+def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_labels, ndigit, depth, num_hidden,
 				conv_params, batch_size=128, num_samples=0, num_steps = 1001, print_steps=100, dropout=False):
-	beta = .01
 	if num_samples ==0:
 		num_samples = X_train.shape[0]
 
@@ -133,8 +134,6 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 
 	[patch_size, conv_stride, pool_size, pool_stride, padopt] = conv_params
 	image_size = image[0]
-	depth      = [ 8, 16,  32]
-	num_hidden = [128, 64, 32]
 
 	with graph.as_default():
 
@@ -193,11 +192,12 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
 			loss += tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=tf_y_train[:,digit], logits=logits[digit]))
 
 		# Loss function with L2 Regularization with beta
+		beta = 0.0001
 		loss = tf.reduce_mean(loss + beta * regularizers)
 
 		# Optimize using Gradient Descent
 		global_step = tf.Variable(0)  # count the number of steps taken.
-		init_learning_rate = 0.01
+		init_learning_rate = 0.05
 		learning_rate = tf.train.exponential_decay(init_learning_rate, global_step, decay_steps=100000, decay_rate=0.95, staircase=True)
 		#optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
 		optimizer = tf.train.AdagradOptimizer(learning_rate).minimize(loss, global_step=global_step)
@@ -268,24 +268,25 @@ else:
 
 X_input, y_input, X_valid, y_valid, X_tests, y_tests = load_data(pickle_file)
 
-image_size = X_input.shape[1]
-batch_size = 64
-num_channels = X_input.shape[3]
-image = [image_size, image_size, num_channels]
+image       = [X_input.shape[1], X_input.shape[2], X_input.shape[3]]
 print ('image size',image)
-ndigit = y_input.shape[1]  #number of digits in that sample
-num_steps = 5001
+ndigit      = y_input.shape[1]  #number of digits in that sample
+num_labels  = 11
+batch_size  = 64
+num_steps   = 5001
 print_steps = 500
-dropout = False
-num_samples=0 # try with full dataset first
-
-patch_size = 5
-conv_stride= 1
-pool_size  = 2
-pool_stride= 2
-padopt = 'SAME'
+dropout     = True
+num_sample  = 0 # try with full dataset; otherwise specify the subset
+patch_size  = 5
+conv_stride = 1
+pool_size   = 2
+pool_stride = 2
+padopt      = 'SAME'
 conv_params = [patch_size, conv_stride, pool_size, pool_stride, padopt]
+depth       = [  8, 16, 32]
+num_hidden  = [1024, 256, 32]
 
-y_test_pred, y_valid_pred = n_layer_cnn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, image, num_labels, ndigit,
-									     conv_params, batch_size, num_samples, num_steps, print_steps, dropout)
+y_test_pred, y_valid_pred = n_layer_cnn (X_input, y_input, X_valid, y_valid, X_tests, y_tests, 
+										image, num_labels, ndigit, depth, num_hidden, conv_params, 
+										batch_size, num_samples, num_steps, print_steps, dropout)
 
