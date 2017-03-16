@@ -2,6 +2,7 @@ notMNIST.pickle
 test_32x32.mat
 train_32x32.mat
 SVHN.pickle
+SVHN_bboxes.pickle
 synthetic.pickle
 test/
 train/
