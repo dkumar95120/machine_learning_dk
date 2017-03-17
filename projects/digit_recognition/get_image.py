@@ -11,25 +11,13 @@ import h5py
 
 img_size = 32
 
-def show_bboxes (imagefile):
-    im = cv2.imread(imagefile)
-    imgray = cv2.cvtColor(im,cv2.COLOR_BGR2GRAY)
-    ret,thresh = cv2.threshold(imgray,127,255,0)
-    # find contour in image
-    # cv2.RETR_TREE retrieves the entire hierarchy of contours in image
-    # if you only want to retrieve the most external contour
-    # use cv.RETR_EXTERNAL
-    image, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    idx=0
-    for cnt in contours:
-        x,y,w,h = cv2.boundingRect(cnt)
-        if w < 16 or h < 16: continue
-        idx += 1
-        roi=im[y:y+h,x:x+w]
-        #cv2.imwrite(str(idx), roi)
-        cv2.rectangle(im,(x,y),(x+w,y+h),(0,255,0),2)
-        #cv2.putText(im,'Moth Detected',(x+w+10,y+h),0,0.3,(0,255,0))
-    cv2.imshow('img',im)
+def show_bboxes (imagefiles, bboxes):
+    for i, imagefile in enumerate(imagefiles):
+        im = cv2.imread(imagefile)
+        for j in range(bboxes[i].shape[0]):
+            x,y,w,h = bboxes[i][j]
+            cv2.rectangle(im,(x,y),(x+w,y+h),(0,255,0),2)
+        cv2.imshow('img',im)
     cv2.waitKey(0)    
     cv2.destroyAllWindows()
 
