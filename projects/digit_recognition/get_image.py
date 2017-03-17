@@ -7,20 +7,28 @@ from   six.moves import cPickle as pickle
 from   scipy.misc import imresize
 import scipy.io as sio
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import h5py
 
 img_size = 32
 
-def show_bboxes (imagefiles, bboxes):
-    for i, imagefile in enumerate(imagefiles):
-        im = cv2.imread(imagefile)
-        for j in range(bboxes[i].shape[0]):
-            x,y,w,h = bboxes[i][j]
-            cv2.rectangle(im,(x,y),(x+w,y+h),(0,255,0),2)
-        cv2.imshow('img',im)
-    cv2.waitKey(0)    
-    cv2.destroyAllWindows()
+def show_bboxes (imagefiles, bboxes, image_size):
+    ntests = bboxes.shape[0]
+    nboxes = bboxes.shape[1]//4
+    bboxes = bboxes.reshape(ntests, nboxes, -1)
 
+    for i, imagefile in enumerate(imagefiles):
+        im = np.array(Image.open(imagefile), dtype=np.uint8)
+        im = imresize(im,(image_size, image_size))
+        fig,ax = plt.subplots(1)
+        for j in range(nboxes):
+            x,y,w,h = bboxes[i,j]
+            if w*h == 0:
+                break
+            rect = patches.Rectangle((x,y),w,h,linewidth=2, edgecolor='r',facecolor='none')
+            ax.add_patch(rect)
+        plt.imshow(im)
+    plt.show()
 # The DigitStructFile is just a wrapper around the h5py data.  It basically references 
 #     file_:            The input h5 matlab file
 #     digitStructName   The h5 ref to all the file names
@@ -359,7 +367,7 @@ def prepare_bbox_images(samples, folder):
     print("Bounding box images resized, grayscaled and normalized")    
     return bbox_images, bbox_labels, files
 
-prepare_bbox_data = True
+prepare_bbox_data = False
 if prepare_bbox_data:
     file_ = '.\\train\\digitStruct.mat'
     dsf = DigitStructs(file_)
