@@ -1,8 +1,10 @@
-notMNIST.pickle
-test_32x32.mat
-train_32x32.mat
-SVHN.pickle
-SVHN_bboxes.pickle
-synthetic.pickle
+*.mat
+*.pickle
+*.h5
+*.h5bak
+*.bmp
+*.png
 test/
 train/
+logs/
+extra/
