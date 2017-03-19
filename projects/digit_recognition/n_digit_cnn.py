@@ -206,7 +206,7 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
         # Loss function with L2 Regularization with beta
         beta = 0.0001
         loss = tf.reduce_mean(loss + beta * regularizers)
-
+        tf.summary.scalar('loss', loss)
         # Optimize using Gradient Descent
         global_step = tf.Variable(0)  # count the number of steps taken.
         init_learning_rate = 0.05
@@ -220,6 +220,9 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
             y_pred[digit] = tf.nn.softmax(logits[digit])
 
         y_train_pred = pack(y_pred)
+        #tf.summary.scalar('accuracy', trn_label)
+        merged = tf.summary.merge_all()
+        train_writer = tf.summary.FileWriter('./logs', graph)
 
         # Transform validation samples using the same transformation used above for training samples
         for digit in range(ndigit):
@@ -256,7 +259,7 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
             # The key of the dictionary is the placeholder node of the graph to be fed,
             # and the value is the numpy array to feed to it.
             feed_dict = {tf_X_train : batch_X, tf_y_train : batch_y}
-            _, l, y_pred = session.run([optimizer, loss, y_train_pred], feed_dict=feed_dict)
+            summary, _, l, y_pred = session.run([merged, optimizer, loss, y_train_pred], feed_dict=feed_dict)
 
             # Run the computations. We tell .run() that we want to run the optimizer,
             # and get the loss value and the training predictions returned as numpy arrays.
@@ -266,6 +269,7 @@ def n_layer_cnn (X_train, y_train, X_valid, y_valid, X_test, y_test, image, num_
                 val_digit, val_label = accuracy(y_valid_eval, y_valid)
                 print('{0:5d} {1:10.2f}        ({2:5.2f},{3:5.2f})     ({4:5.2f},{5:5.2f})'.format(step, l, 
                 trn_digit, trn_label, val_digit, val_label))
+                train_writer.add_summary(summary, step)
                 # Calling .eval() on valid_prediction is basically like calling run()
         y_test_eval = y_test_pred.eval()
         tst_digit, tst_label = accuracy(y_test_eval, y_test)
@@ -286,8 +290,8 @@ print ('image size',image)
 ndigit      = y_input.shape[1]  #number of digits in that sample
 num_labels  = 11
 batch_size  = 64
-num_steps   = 5001
-print_steps = 500
+num_steps   = 1001
+print_steps = 100
 dropout     = True
 num_sample  = 0 # try with full dataset; otherwise specify the subset
 patch_size  = 5

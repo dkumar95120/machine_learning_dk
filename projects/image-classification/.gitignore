@@ -4,4 +4,5 @@
 *.h5bak
 *.bmp
 *.png
+*.p
 cifar-10-batches-py/

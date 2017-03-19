@@ -279,7 +279,7 @@ if build_synthetic_images:
 
 prepare_test_data = False
 if prepare_test_data:
-    file_ = '.\\train\\digitStruct.mat'
+    file_ = '.\\extra\\digitStruct.mat'
     dsf = DigitStructs(file_)
     train_data = dsf.reformat()
 
@@ -287,13 +287,13 @@ if prepare_test_data:
     dsf = DigitStructs(file_)
     test_data = dsf.reformat()
 
-    train_data, train_labels, _ = prepare_images(train_data, '.\\train\\')
+    train_data, train_labels, _ = prepare_images(train_data, '.\\extra\\')
     print(train_data.shape, train_labels.shape)
 
     test_data, test_labels, test_filenames = prepare_images(test_data, '.\\test\\')
     print(test_data.shape, test_labels.shape)
 
-    pickle_file = 'SVHN.pickle'
+    pickle_file = 'SVHN_extra.pickle'
 
     try:
         f = open(pickle_file, 'wb')
@@ -367,9 +367,9 @@ def prepare_bbox_images(samples, folder):
     print("Bounding box images resized, grayscaled and normalized")    
     return bbox_images, bbox_labels, files
 
-prepare_bbox_data = False
+prepare_bbox_data = True
 if prepare_bbox_data:
-    file_ = '.\\train\\digitStruct.mat'
+    file_ = '.\\extra\\digitStruct.mat'
     dsf = DigitStructs(file_)
     train_data = dsf.reformat()
 
@@ -377,7 +377,7 @@ if prepare_bbox_data:
     dsf = DigitStructs(file_)
     test_data = dsf.reformat()
 
-    train_data, train_labels, _ = prepare_bbox_images(train_data, '.\\train\\')
+    train_data, train_labels, _ = prepare_bbox_images(train_data, '.\\extra\\')
     print(train_data.shape, train_labels.shape)
 
     test_data, test_labels, test_filenames = prepare_bbox_images(test_data, '.\\test\\')
