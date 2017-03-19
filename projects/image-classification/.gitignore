@@ -1,0 +1,7 @@
+*.tar*
+*.pickle
+*.h5
+*.h5bak
+*.bmp
+*.png
+cifar-10-batches-py/
